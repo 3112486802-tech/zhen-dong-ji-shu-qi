@@ -28,8 +28,11 @@ main{padding:0 0 100px}
 .status-dot.active{background:var(--ac);box-shadow:0 0 8px rgba(0,229,160,.6);animation:blink 1s infinite}
 @keyframes blink{0%,100%{opacity:1}50%{opacity:.5}}
 
-.count-num{font-family:'JetBrains Mono',monospace;font-size:88px;font-weight:700;color:var(--ac);text-align:center;padding:24px 0 8px;line-height:1;text-shadow:0 0 60px rgba(0,229,160,.12);transition:color .1s}
+.count-num{font-family:'JetBrains Mono',monospace;font-size:88px;font-weight:700;color:var(--ac);text-align:center;padding:24px 0 4px;line-height:1;text-shadow:0 0 60px rgba(0,229,160,.12);transition:color .1s,transform .15s;cursor:pointer;user-select:none;-webkit-user-select:none}
+.count-num:active{transform:scale(.93)}
 .count-num.flash{color:#fff;text-shadow:0 0 60px rgba(255,255,255,.4)}
+.count-tap-hint{font-size:10px;color:var(--tm);text-align:center;font-family:'JetBrains Mono',monospace;letter-spacing:1px;padding-bottom:2px;transition:opacity .3s}
+.count-tap-hint.hidden{opacity:0}
 
 .count-sub{font-size:11px;color:var(--td);text-align:center;padding-bottom:4px;font-family:'JetBrains Mono',monospace}
 
@@ -99,7 +102,8 @@ input[type="range"]::-webkit-slider-thumb{-webkit-appearance:none;width:16px;hei
       <span class="count-label">▸ Vibration Count</span>
       <div class="status-dot" id="statusDot"></div>
     </div>
-    <div class="count-num" id="countNum">0</div>
+    <div class="count-num" id="countNum" onclick="tapCount()">0</div>
+    <div class="count-tap-hint" id="tapHint">点击重新开始</div>
     <div class="count-sub" id="countSub">等待启动...</div>
 
     <!-- 实时加速度条 -->
@@ -227,16 +231,19 @@ function setStatus(active) {
   const dot = document.getElementById('statusDot');
   const btn = document.getElementById('mainBtn');
   const sub = document.getElementById('countSub');
+  const hint = document.getElementById('tapHint');
   if (active) {
     dot.classList.add('active');
     btn.textContent = '■ 停止检测';
     btn.classList.add('running');
     sub.textContent = '检测中，等待振动...';
+    hint.classList.add('hidden');
   } else {
     dot.classList.remove('active');
     btn.textContent = '▶ 开始检测';
     btn.classList.remove('running');
     sub.textContent = count > 0 ? `已记录 ${count} 次振动` : '等待启动...';
+    hint.classList.toggle('hidden', count === 0);
   }
 }
 
@@ -284,6 +291,14 @@ function onMotion(e) {
   }
 }
 
+// ── 点击计数数字：归零并重新开始 ────────────────────
+function tapCount() {
+  resetCount();
+  if (!running) {
+    startListening();
+  }
+}
+
 // ── 启动 / 停止 ───────────────────────────────────
 function startListening() {
   window.addEventListener('devicemotion', onMotion);
@@ -306,7 +321,6 @@ function toggleRun() {
   if (running) {
     stopListening();
   } else {
-    resetCount();
     startListening();
   }
 }
