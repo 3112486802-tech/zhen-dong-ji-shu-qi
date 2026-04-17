@@ -15,8 +15,7 @@ body{background:var(--bg);color:var(--tx);font-family:'Noto Sans SC',-apple-syst
 .logo{font-family:'JetBrains Mono',monospace;font-size:12px;font-weight:700;color:var(--ac);letter-spacing:2px;display:flex;align-items:center;gap:8px;text-transform:uppercase}
 .logo-dot{width:7px;height:7px;background:var(--ac);border-radius:50%;animation:pulse 2.5s infinite}
 @keyframes pulse{0%,100%{opacity:1}50%{opacity:.4}}
-.badge{font-family:'JetBrains Mono',monospace;background:var(--ac);color:#000;font-size:12px;font-weight:700;padding:4px 14px;border-radius:100px;min-width:48px;text-align:center;transition:transform .1s}
-.badge.pop{transform:scale(1.25)}
+.badge{font-family:'JetBrains Mono',monospace;background:var(--ac);color:#000;font-size:12px;font-weight:700;padding:4px 14px;border-radius:100px;min-width:48px;text-align:center}
 
 main{padding:0 0 100px}
 
@@ -28,9 +27,8 @@ main{padding:0 0 100px}
 .status-dot.active{background:var(--ac);box-shadow:0 0 8px rgba(0,229,160,.6);animation:blink 1s infinite}
 @keyframes blink{0%,100%{opacity:1}50%{opacity:.5}}
 
-.count-num{font-family:'JetBrains Mono',monospace;font-size:88px;font-weight:700;color:var(--ac);text-align:center;padding:24px 0 4px;line-height:1;text-shadow:0 0 60px rgba(0,229,160,.12);transition:color .1s,transform .15s;cursor:pointer;user-select:none;-webkit-user-select:none}
+.count-num{font-family:'JetBrains Mono',monospace;font-size:88px;font-weight:700;color:var(--ac);text-align:center;padding:24px 0 4px;line-height:1;text-shadow:0 0 60px rgba(0,229,160,.12);transition:transform .15s;cursor:pointer;user-select:none;-webkit-user-select:none}
 .count-num:active{transform:scale(.93)}
-.count-num.flash{color:#fff;text-shadow:0 0 60px rgba(255,255,255,.4)}
 .count-tap-hint{font-size:10px;color:var(--tm);text-align:center;font-family:'JetBrains Mono',monospace;letter-spacing:1px;padding-bottom:2px;transition:opacity .3s}
 .count-tap-hint.hidden{opacity:0}
 
@@ -64,10 +62,6 @@ main{padding:0 0 100px}
 .pv{font-family:'JetBrains Mono',monospace;font-size:11px;color:var(--ac);min-width:42px;text-align:right}
 input[type="range"]{-webkit-appearance:none;width:110px;height:3px;background:var(--bb);border-radius:2px;outline:none}
 input[type="range"]::-webkit-slider-thumb{-webkit-appearance:none;width:16px;height:16px;background:var(--ac);border-radius:50%;cursor:pointer}
-
-/* 重置按钮（设置里） */
-.reset-btn{width:100%;padding:10px;background:transparent;border:1px solid var(--bb);border-radius:8px;color:var(--td);font-family:'JetBrains Mono',monospace;font-size:12px;letter-spacing:1px;cursor:pointer;text-transform:uppercase;transition:border-color .2s,color .2s}
-.reset-btn:active{border-color:var(--ac3);color:var(--ac3)}
 
 /* iOS 权限区 */
 .perm-box{margin:0 14px 10px;background:var(--s);border:1px dashed var(--bb);border-radius:12px;padding:18px 16px;text-align:center;display:none}
@@ -139,8 +133,8 @@ input[type="range"]::-webkit-slider-thumb{-webkit-appearance:none;width:16px;hei
           低=需要大动作 / 高=轻微振动即触发
         </div>
         <div class="pc">
-          <input type="range" min="1" max="10" value="5" id="sensSlider" oninput="onSensChange(this.value)">
-          <span class="pv" id="sensVal">5</span>
+          <input type="range" min="1" max="10" value="10" id="sensSlider" oninput="onSensChange(this.value)">
+          <span class="pv" id="sensVal">10</span>
         </div>
       </div>
       <div class="pr">
@@ -149,8 +143,8 @@ input[type="range"]::-webkit-slider-thumb{-webkit-appearance:none;width:16px;hei
           同一次振动不重复计数的间隔
         </div>
         <div class="pc">
-          <input type="range" min="100" max="1000" step="50" value="300" id="coolSlider" oninput="onCoolChange(this.value)">
-          <span class="pv" id="coolVal">300ms</span>
+          <input type="range" min="100" max="1000" step="50" value="150" id="coolSlider" oninput="onCoolChange(this.value)">
+          <span class="pv" id="coolVal">150ms</span>
         </div>
       </div>
       <div class="pr" style="margin-top:4px">
@@ -171,9 +165,9 @@ let maxAccel = 0;
 let lastTrigger = 0;
 let startTime = null;
 let timerInterval = null;
-let cooldown = 300;   // ms
-let sensitivity = 5;  // 1~10
-let threshold = 10.0; // m/s²，由 sensitivity 映射
+let cooldown = 150;   // ms
+let sensitivity = 10; // 1~10
+let threshold = 2.0;  // m/s²，由 sensitivity 映射
 
 // sensitivity → threshold 映射（1=20, 10=2）
 function sensToThreshold(s) {
@@ -215,15 +209,11 @@ function resetCount() {
   document.getElementById('statTime').textContent = '00:00';
 }
 
-function updateCountUI(flash) {
-  const el = document.getElementById('countNum');
-  el.textContent = count;
+function updateCountUI(buzz) {
+  document.getElementById('countNum').textContent = count;
   document.getElementById('topBadge').textContent = count;
-  if (flash) {
-    el.classList.add('flash');
-    const badge = document.getElementById('topBadge');
-    badge.classList.add('pop');
-    setTimeout(() => { el.classList.remove('flash'); badge.classList.remove('pop'); }, 150);
+  if (buzz && navigator.vibrate) {
+    navigator.vibrate(50);
   }
 }
 
@@ -342,7 +332,8 @@ function requestPerm() {
 // ── 初始化 ────────────────────────────────────────
 (function init() {
   // 设置初始 threshold 显示
-  onSensChange(5);
+  onSensChange(10);
+  onCoolChange(150);
 
   // 检测 iOS 需要权限
   if (typeof DeviceMotionEvent !== 'undefined' &&
