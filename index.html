@@ -157,9 +157,6 @@ input[type="range"]::-webkit-slider-thumb{-webkit-appearance:none;width:16px;hei
   </div>
 </main>
 
-<!-- 防休眠兜底视频（Wake Lock 不可用时循环播放保持亮屏） -->
-<video id="noSleepVideo" muted playsinline webkit-playsinline loop style="position:fixed;width:1px;height:1px;opacity:0;pointer-events:none;left:-10px;top:-10px"></video>
-
 <button class="ab" id="mainBtn" onclick="toggleRun()">▶ 开始检测</button>
 
 <script>
@@ -173,7 +170,6 @@ let timerInterval = null;
 let cooldown = 150;   // ms
 let sensitivity = 10; // 1~10
 let threshold = 2.0;  // m/s²，由 sensitivity 映射
-let wakeLock = null;  // Screen Wake Lock 句柄
 
 // sensitivity → threshold 映射（1=20, 10=2）
 function sensToThreshold(s) {
@@ -299,53 +295,6 @@ function tapCount() {
   }
 }
 
-// ── 防休眠：Wake Lock API + 视频兜底 ──────────────
-// 极小无声 mp4（NoSleep.js 同款思路，循环让 WebKit 视为"正在播放媒体"）
-const NO_SLEEP_MP4 = 'data:video/mp4;base64,AAAAHGZ0eXBpc29tAAACAGlzb21pc28ybXA0MQAAAAhmcmVlAAAGF21kYXTeBAAAbGliZmFhYyAxLjI4AABCAJMQBcAAAAADTEFNRTMuOThyAbwAAAAAAAAAABSAJAiVAbAAAABAAAAhPZ99AAACMWlsc3QAAAAlqXRvbwAAAB1kYXRhAAAAAQAAAABMYXZmNTguNzYuMTAwAAAACHVkdGEAAACaABt4bWwgZnJvbT0iaHR0cHM6Ly93d3cuYXBwbGUuY29tL3F1aWNrdGltZS8iPjxtZXRhIGh0dHAtZXF1aXY9ImNvbnRlbnQtdHlwZSIgY29udGVudD0idGV4dC9odG1sO2NoYXJzZXQ9dXRmLTgiPjwvZG9jPgAAAAIAAAA=';
-
-async function acquireWakeLock() {
-  // 主策略：Screen Wake Lock API
-  try {
-    if ('wakeLock' in navigator) {
-      wakeLock = await navigator.wakeLock.request('screen');
-      wakeLock.addEventListener('release', () => { wakeLock = null; });
-    }
-  } catch (e) { /* 被拒或不支持，走视频兜底 */ }
-  // 兜底：静音循环视频（在 watchOS/老 iOS 更容易生效）
-  const v = document.getElementById('noSleepVideo');
-  if (v && v.paused) {
-    if (!v.src) v.src = NO_SLEEP_MP4;
-    v.play().catch(() => {});
-  }
-  updateKeepAwakeHint();
-}
-
-function releaseWakeLock() {
-  if (wakeLock) {
-    wakeLock.release().catch(() => {});
-    wakeLock = null;
-  }
-  const v = document.getElementById('noSleepVideo');
-  if (v && !v.paused) v.pause();
-}
-
-function updateKeepAwakeHint() {
-  const sub = document.getElementById('countSub');
-  if (running && sub && !sub.textContent.includes('屏幕常亮')) {
-    // 不覆盖"最新峰值"等动态文本，仅在"等待振动..."阶段追加
-    if (sub.textContent === '检测中，等待振动...') {
-      sub.textContent = '检测中，等待振动...  ● 屏幕常亮';
-    }
-  }
-}
-
-// 页面切回前台时重新申请（Wake Lock 在隐藏时会被系统释放）
-document.addEventListener('visibilitychange', () => {
-  if (running && document.visibilityState === 'visible' && !wakeLock) {
-    acquireWakeLock();
-  }
-});
-
 // ── 启动 / 停止 ───────────────────────────────────
 function startListening() {
   window.addEventListener('devicemotion', onMotion);
@@ -353,7 +302,6 @@ function startListening() {
   startTime = Date.now();
   setStatus(true);
   timerInterval = setInterval(updateTimer, 500);
-  acquireWakeLock();
 }
 
 function stopListening() {
@@ -363,7 +311,6 @@ function stopListening() {
   setStatus(false);
   document.getElementById('accelFill').style.width = '0%';
   document.getElementById('accelVal').textContent = '0.00 m/s²';
-  releaseWakeLock();
 }
 
 function toggleRun() {
