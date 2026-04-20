@@ -170,6 +170,9 @@ let timerInterval = null;
 let cooldown = 150;   // ms
 let sensitivity = 10; // 1~10
 let threshold = 2.0;  // m/s²，由 sensitivity 映射
+let lastMotionTime = 0;       // 最近一次 devicemotion 时间戳
+let stallWatchInterval = null; // 心跳看门狗：事件流挂起时自动重订阅
+const STALL_MS = 3000;         // 超过这个时间没事件就认为挂起
 
 // sensitivity → threshold 映射（1=20, 10=2）
 function sensToThreshold(s) {
@@ -257,6 +260,7 @@ function updateTimer() {
 
 // ── 传感器处理 ────────────────────────────────────
 function onMotion(e) {
+  lastMotionTime = Date.now();
   const a = e.acceleration || e.accelerationIncludingGravity;
   if (!a) return;
 
@@ -296,18 +300,36 @@ function tapCount() {
 }
 
 // ── 启动 / 停止 ───────────────────────────────────
+// iOS Safari / Android Chrome 在省电 / 后台 / 无交互时会静默掐掉 devicemotion 事件流，
+// 手动 stop→start 能恢复的本质就是重新订阅。用心跳 watchdog 自动做这件事。
+function resubscribeMotion() {
+  window.removeEventListener('devicemotion', onMotion);
+  window.addEventListener('devicemotion', onMotion);
+  lastMotionTime = Date.now(); // 给宽限期
+}
+
 function startListening() {
   window.addEventListener('devicemotion', onMotion);
   running = true;
   startTime = Date.now();
+  lastMotionTime = Date.now();
   setStatus(true);
   timerInterval = setInterval(updateTimer, 500);
+  // 每秒检查事件流是否被挂起；卡住就悄悄重订阅
+  stallWatchInterval = setInterval(() => {
+    if (!running) return;
+    if (Date.now() - lastMotionTime > STALL_MS) {
+      resubscribeMotion();
+    }
+  }, 1000);
 }
 
 function stopListening() {
   window.removeEventListener('devicemotion', onMotion);
   running = false;
   clearInterval(timerInterval);
+  clearInterval(stallWatchInterval);
+  stallWatchInterval = null;
   setStatus(false);
   document.getElementById('accelFill').style.width = '0%';
   document.getElementById('accelVal').textContent = '0.00 m/s²';
@@ -351,6 +373,13 @@ function requestPerm() {
   if (window.isSecureContext === false) {
     document.getElementById('countSub').textContent = '⚠ 需在 HTTPS 页面才能访问传感器';
   }
+
+  // 页面从后台回到前台：事件流通常已被挂起，立即重订阅
+  document.addEventListener('visibilitychange', () => {
+    if (document.visibilityState === 'visible' && running) {
+      resubscribeMotion();
+    }
+  });
 })();
 </script>
 </body>
