@@ -18,7 +18,7 @@ body{background:var(--bg);color:var(--tx);font-family:'Noto Sans SC',-apple-syst
 .badge{font-family:'JetBrains Mono',monospace;background:var(--ac);color:#000;font-size:12px;font-weight:700;padding:4px 14px;border-radius:100px;min-width:48px;text-align:center;transition:transform .1s}
 .badge.pop{transform:scale(1.25)}
 
-main{padding:0 0 100px}
+main{padding:0 0 24px}
 
 /* 主计数卡片 */
 .count-card{margin:14px 14px 10px;background:var(--s);border:1px solid rgba(0,229,160,.3);border-radius:14px;overflow:hidden;box-shadow:0 0 40px rgba(0,229,160,.04)}
@@ -72,10 +72,6 @@ input[type="range"]::-webkit-slider-thumb{-webkit-appearance:none;width:16px;hei
 .perm-txt{font-size:12px;color:var(--td);line-height:1.7;margin-bottom:12px}
 .perm-btn{padding:10px 24px;background:var(--ac2);border:none;border-radius:8px;color:#000;font-family:'JetBrains Mono',monospace;font-size:12px;font-weight:700;cursor:pointer;letter-spacing:.5px}
 
-/* 底部主按钮 */
-.ab{position:fixed;bottom:16px;left:50%;transform:translateX(-50%);width:calc(100% - 28px);max-width:420px;padding:15px;background:var(--ac);border:none;border-radius:12px;color:#000;font-family:'JetBrains Mono',monospace;font-size:13px;font-weight:700;letter-spacing:1.5px;cursor:pointer;z-index:99;box-shadow:0 4px 20px rgba(0,229,160,.25);text-transform:uppercase;transition:background .2s}
-.ab:active{transform:translateX(-50%) scale(.98)}
-.ab.running{background:#ff4d6a;box-shadow:0 4px 20px rgba(255,77,106,.25)}
 </style>
 </head>
 <body>
@@ -157,8 +153,6 @@ input[type="range"]::-webkit-slider-thumb{-webkit-appearance:none;width:16px;hei
   </div>
 </main>
 
-<button class="ab" id="mainBtn" onclick="toggleRun()">▶ 开始检测</button>
-
 <script>
 // ── 状态 ──────────────────────────────────────────
 let running = false;
@@ -228,20 +222,15 @@ function updateCountUI(flash) {
 
 function setStatus(active) {
   const dot = document.getElementById('statusDot');
-  const btn = document.getElementById('mainBtn');
   const sub = document.getElementById('countSub');
   const hint = document.getElementById('tapHint');
   if (active) {
     dot.classList.add('active');
-    btn.textContent = '■ 停止检测';
-    btn.classList.add('running');
     sub.textContent = '检测中，等待振动...';
     hint.textContent = '点击数字停止';
     hint.classList.remove('hidden');
   } else {
     dot.classList.remove('active');
-    btn.textContent = '▶ 开始检测';
-    btn.classList.remove('running');
     sub.textContent = count > 0 ? `已记录 ${count} 次振动` : '等待启动...';
     hint.textContent = count > 0 ? '点击数字归零并重新开始' : '点击数字开始检测';
     hint.classList.remove('hidden');
