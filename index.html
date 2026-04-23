@@ -291,35 +291,50 @@ function updateTimer() {
 }
 
 // ── 传感器处理 ────────────────────────────────────
+// devicemotion 在手机上可达 60Hz+，每次都直接改 DOM 会把主线程填满，
+// 表现为点击屏幕延迟/无反应。把纯视觉更新合并到 rAF 每帧一次，
+// 计数触发逻辑保持在事件回调里实时判断。
+let rafPending = false;
+let latestMag = 0;
+let maxAccelDirty = false;
+
+function flushMotionUI() {
+  rafPending = false;
+  const pct = Math.min((latestMag / 30) * 100, 100);
+  document.getElementById('accelFill').style.width = pct + '%';
+  document.getElementById('accelVal').textContent = latestMag.toFixed(2) + ' m/s²';
+  if (maxAccelDirty) {
+    maxAccelDirty = false;
+    document.getElementById('statMax').textContent = maxAccel.toFixed(1);
+  }
+}
+
 function onMotion(e) {
   lastMotionTime = Date.now();
   const a = e.acceleration || e.accelerationIncludingGravity;
   if (!a) return;
 
   const x = a.x || 0, y = a.y || 0, z = a.z || 0;
-  // 若只有 accelerationIncludingGravity，减去重力近似（9.8 在 z 轴）
   const mag = Math.sqrt(x * x + y * y + z * z);
+  latestMag = mag;
 
-  // 更新加速度条（量程 0~30）
-  const pct = Math.min((mag / 30) * 100, 100);
-  document.getElementById('accelFill').style.width = pct + '%';
-  document.getElementById('accelVal').textContent = mag.toFixed(2) + ' m/s²';
-
-  if (!running) return;
-
-  // 更新峰值
-  if (mag > maxAccel) {
-    maxAccel = mag;
-    document.getElementById('statMax').textContent = maxAccel.toFixed(1);
+  if (running) {
+    if (mag > maxAccel) {
+      maxAccel = mag;
+      maxAccelDirty = true;
+    }
+    const now = Date.now();
+    if (mag >= threshold && now - lastTrigger > cooldown) {
+      lastTrigger = now;
+      count++;
+      updateCountUI(true);
+      document.getElementById('countSub').textContent = `最新峰值 ${mag.toFixed(1)} m/s²`;
+    }
   }
 
-  // 触发计数
-  const now = Date.now();
-  if (mag >= threshold && now - lastTrigger > cooldown) {
-    lastTrigger = now;
-    count++;
-    updateCountUI(true);
-    document.getElementById('countSub').textContent = `最新峰值 ${mag.toFixed(1)} m/s²`;
+  if (!rafPending) {
+    rafPending = true;
+    requestAnimationFrame(flushMotionUI);
   }
 }
 
