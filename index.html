@@ -403,12 +403,31 @@ function requestPerm() {
     document.getElementById('countSub').textContent = '⚠ 需在 HTTPS 页面才能访问传感器';
   }
 
-  // 页面从后台回到前台：事件流通常已被挂起，立即重订阅
+  // 页面从后台/息屏回到前台：iOS 会挂起事件流，立即重订阅，
+  // 首次 resubscribe 有时还拿不到事件，500ms 后兜底再试一次
   document.addEventListener('visibilitychange', () => {
     if (document.visibilityState === 'visible' && running) {
       resubscribeMotion();
+      setTimeout(() => {
+        if (running && Date.now() - lastMotionTime > 400) {
+          resubscribeMotion();
+        }
+      }, 500);
     }
   });
+
+  // BFCache 恢复（iOS 切换 tab / 返回等走 pageshow 而不是 visibilitychange）
+  window.addEventListener('pageshow', () => {
+    if (running) resubscribeMotion();
+  });
+
+  // 任意触摸即踢活：只要事件流停超 1s，就当是卡住并强制重订阅
+  // 这样用户感觉页面没反应时随便点一下屏幕就能恢复，不必等 watchdog
+  document.addEventListener('touchstart', () => {
+    if (running && Date.now() - lastMotionTime > 1000) {
+      resubscribeMotion();
+    }
+  }, { passive: true });
 })();
 </script>
 </body>
