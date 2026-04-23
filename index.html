@@ -38,8 +38,11 @@ main{padding:0 0 24px}
 
 /* 快速计算按钮 */
 .qcalc{display:grid;grid-template-columns:repeat(4,1fr);gap:6px;padding:8px 14px 12px}
-.qc-btn{background:var(--s2);border:1px solid var(--bd);border-radius:8px;padding:9px 4px;color:var(--td);font-family:'JetBrains Mono',monospace;font-size:12px;font-weight:600;text-align:center;transition:color .15s,border-color .15s,background .15s;line-height:1.1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
-.qc-btn.hot{color:var(--ac);border-color:rgba(0,229,160,.35);background:rgba(0,229,160,.06)}
+.qc-item{display:flex;flex-direction:column;gap:4px;min-width:0}
+.qc-btn{background:var(--s2);border:1px solid var(--bd);border-radius:8px;padding:9px 4px;color:var(--td);font-family:'JetBrains Mono',monospace;font-size:12px;font-weight:600;text-align:center;transition:color .15s,border-color .15s,background .15s,transform .1s;line-height:1.1;cursor:pointer;user-select:none;-webkit-user-select:none}
+.qc-btn:active{transform:scale(.96)}
+.qc-btn.active{color:var(--ac);border-color:rgba(0,229,160,.35);background:rgba(0,229,160,.06)}
+.qc-result{text-align:center;font-family:'JetBrains Mono',monospace;font-size:13px;font-weight:700;color:var(--ac);min-height:16px;line-height:1}
 
 /* 加速度实时条 */
 .accel-bar-wrap{padding:12px 14px 14px;border-top:1px solid var(--bd)}
@@ -105,10 +108,22 @@ input[type="range"]::-webkit-slider-thumb{-webkit-appearance:none;width:16px;hei
 
     <!-- 快速计算 -->
     <div class="qcalc" id="qcalc">
-      <div class="qc-btn" data-mul="2">×2</div>
-      <div class="qc-btn" data-mul="4">×4</div>
-      <div class="qc-btn" data-mul="8">×8</div>
-      <div class="qc-btn" data-mul="63.6">×63.6</div>
+      <div class="qc-item">
+        <button type="button" class="qc-btn" data-mul="2" onclick="toggleQc(this)">×2</button>
+        <div class="qc-result"></div>
+      </div>
+      <div class="qc-item">
+        <button type="button" class="qc-btn" data-mul="4" onclick="toggleQc(this)">×4</button>
+        <div class="qc-result"></div>
+      </div>
+      <div class="qc-item">
+        <button type="button" class="qc-btn" data-mul="8" onclick="toggleQc(this)">×8</button>
+        <div class="qc-result"></div>
+      </div>
+      <div class="qc-item">
+        <button type="button" class="qc-btn" data-mul="63.6" onclick="toggleQc(this)">×63.6</button>
+        <div class="qc-result"></div>
+      </div>
     </div>
 
     <!-- 实时加速度条 -->
@@ -215,6 +230,8 @@ function resetCount() {
   count = 0;
   maxAccel = 0;
   startTime = running ? Date.now() : null;
+  // 归零同时取消所有快算按钮的激活态，恢复默认
+  document.querySelectorAll('.qc-btn').forEach(b => b.classList.remove('active'));
   updateCountUI(false);
   document.getElementById('statMax').textContent = '0.0';
   document.getElementById('statRate').textContent = '-';
@@ -234,16 +251,21 @@ function updateCountUI(flash) {
   }
 }
 
+function toggleQc(btn) {
+  btn.classList.toggle('active');
+  updateQuickCalc();
+}
+
 function updateQuickCalc() {
-  document.querySelectorAll('.qc-btn').forEach(btn => {
-    const mul = parseFloat(btn.dataset.mul);
-    if (count > 0) {
+  document.querySelectorAll('.qc-item').forEach(item => {
+    const btn = item.querySelector('.qc-btn');
+    const res = item.querySelector('.qc-result');
+    if (btn.classList.contains('active') && count > 0) {
+      const mul = parseFloat(btn.dataset.mul);
       const r = count * mul;
-      btn.textContent = Number.isInteger(r) ? r : r.toFixed(1);
-      btn.classList.add('hot');
+      res.textContent = Number.isInteger(r) ? r : r.toFixed(1);
     } else {
-      btn.textContent = '×' + btn.dataset.mul;
-      btn.classList.remove('hot');
+      res.textContent = '';
     }
   });
 }
