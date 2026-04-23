@@ -36,6 +36,11 @@ main{padding:0 0 24px}
 
 .count-sub{font-size:11px;color:var(--td);text-align:center;padding-bottom:4px;font-family:'JetBrains Mono',monospace}
 
+/* 快速计算按钮 */
+.qcalc{display:grid;grid-template-columns:repeat(4,1fr);gap:6px;padding:8px 14px 12px}
+.qc-btn{background:var(--s2);border:1px solid var(--bd);border-radius:8px;padding:9px 4px;color:var(--td);font-family:'JetBrains Mono',monospace;font-size:12px;font-weight:600;text-align:center;transition:color .15s,border-color .15s,background .15s;line-height:1.1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.qc-btn.hot{color:var(--ac);border-color:rgba(0,229,160,.35);background:rgba(0,229,160,.06)}
+
 /* 加速度实时条 */
 .accel-bar-wrap{padding:12px 14px 14px;border-top:1px solid var(--bd)}
 .accel-bar-label{font-size:10px;color:var(--td);font-family:'JetBrains Mono',monospace;display:flex;justify-content:space-between;margin-bottom:6px}
@@ -97,6 +102,14 @@ input[type="range"]::-webkit-slider-thumb{-webkit-appearance:none;width:16px;hei
     <div class="count-num" id="countNum" onclick="tapCount()">0</div>
     <div class="count-tap-hint" id="tapHint">点击开始检测</div>
     <div class="count-sub" id="countSub">等待启动...</div>
+
+    <!-- 快速计算 -->
+    <div class="qcalc" id="qcalc">
+      <div class="qc-btn" data-mul="2">×2</div>
+      <div class="qc-btn" data-mul="4">×4</div>
+      <div class="qc-btn" data-mul="8">×8</div>
+      <div class="qc-btn" data-mul="63.6">×63.6</div>
+    </div>
 
     <!-- 实时加速度条 -->
     <div class="accel-bar-wrap">
@@ -212,12 +225,27 @@ function updateCountUI(flash) {
   const el = document.getElementById('countNum');
   el.textContent = count;
   document.getElementById('topBadge').textContent = count;
+  updateQuickCalc();
   if (flash) {
     el.classList.add('flash');
     const badge = document.getElementById('topBadge');
     badge.classList.add('pop');
     setTimeout(() => { el.classList.remove('flash'); badge.classList.remove('pop'); }, 150);
   }
+}
+
+function updateQuickCalc() {
+  document.querySelectorAll('.qc-btn').forEach(btn => {
+    const mul = parseFloat(btn.dataset.mul);
+    if (count > 0) {
+      const r = count * mul;
+      btn.textContent = Number.isInteger(r) ? r : r.toFixed(1);
+      btn.classList.add('hot');
+    } else {
+      btn.textContent = '×' + btn.dataset.mul;
+      btn.classList.remove('hot');
+    }
+  });
 }
 
 function setStatus(active) {
