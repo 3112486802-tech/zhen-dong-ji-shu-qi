@@ -230,8 +230,9 @@ function resetCount() {
   count = 0;
   maxAccel = 0;
   startTime = running ? Date.now() : null;
-  // 归零同时取消所有快算按钮的激活态，恢复默认
+  // 归零同时恢复所有快算按钮为默认态：取消激活、清空结果
   document.querySelectorAll('.qc-btn').forEach(b => b.classList.remove('active'));
+  document.querySelectorAll('.qc-result').forEach(r => r.textContent = '');
   updateCountUI(false);
   document.getElementById('statMax').textContent = '0.0';
   document.getElementById('statRate').textContent = '-';
@@ -242,7 +243,6 @@ function updateCountUI(flash) {
   const el = document.getElementById('countNum');
   el.textContent = count;
   document.getElementById('topBadge').textContent = count;
-  updateQuickCalc();
   if (flash) {
     el.classList.add('flash');
     const badge = document.getElementById('topBadge');
@@ -251,23 +251,14 @@ function updateCountUI(flash) {
   }
 }
 
+// 快算按钮：每次点击捕获当前 count × 系数的快照，
+// 后续计数不再自动刷新，直到再次点击该按钮重新取值。
 function toggleQc(btn) {
-  btn.classList.toggle('active');
-  updateQuickCalc();
-}
-
-function updateQuickCalc() {
-  document.querySelectorAll('.qc-item').forEach(item => {
-    const btn = item.querySelector('.qc-btn');
-    const res = item.querySelector('.qc-result');
-    if (btn.classList.contains('active') && count > 0) {
-      const mul = parseFloat(btn.dataset.mul);
-      const r = count * mul;
-      res.textContent = Number.isInteger(r) ? r : r.toFixed(1);
-    } else {
-      res.textContent = '';
-    }
-  });
+  btn.classList.add('active');
+  const res = btn.closest('.qc-item').querySelector('.qc-result');
+  const mul = parseFloat(btn.dataset.mul);
+  const r = count * mul;
+  res.textContent = Number.isInteger(r) ? r : r.toFixed(1);
 }
 
 function setStatus(active) {
