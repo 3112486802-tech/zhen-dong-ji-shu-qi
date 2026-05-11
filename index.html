@@ -295,11 +295,13 @@ function updateTimer() {
 // 表现为点击屏幕延迟/无反应。把纯视觉更新合并到 rAF 每帧一次，
 // 计数触发逻辑保持在事件回调里实时判断。
 let rafPending = false;
+let rafId = 0;
 let latestMag = 0;
 let maxAccelDirty = false;
 
 function flushMotionUI() {
   rafPending = false;
+  rafId = 0;
   const pct = Math.min((latestMag / 30) * 100, 100);
   document.getElementById('accelFill').style.width = pct + '%';
   document.getElementById('accelVal').textContent = latestMag.toFixed(2) + ' m/s²';
@@ -334,15 +336,34 @@ function onMotion(e) {
 
   if (!rafPending) {
     rafPending = true;
-    requestAnimationFrame(flushMotionUI);
+    rafId = requestAnimationFrame(flushMotionUI);
   }
 }
 
-// ── 点击数字：归零；若未运行则顺便启动，永远不停止 ────
+// ── 点击数字：硬恢复 + 归零 ────────────────────────────
+// 息屏 / 后台回来后传感器流可能滞留旧帧，单独 resetCount 不够，
+// 这里把所有易脏的中间状态一次清空，让点击屏幕「立刻回到干净起点」。
 function tapCount() {
+  // 1. 干掉任何还在排队的 rAF，避免下一帧用旧 latestMag 覆盖显示
+  if (rafId) {
+    cancelAnimationFrame(rafId);
+    rafId = 0;
+  }
+  rafPending = false;
+  latestMag = 0;
+  maxAccelDirty = false;
+  // 2. 清掉冷却时间戳，避免点击瞬间被「上一次触发」误锁
+  lastTrigger = 0;
+  // 3. 加速度条 / 数值立刻归零，不等下一个 motion 事件
+  document.getElementById('accelFill').style.width = '0%';
+  document.getElementById('accelVal').textContent = '0.00 m/s²';
+  // 4. 计数归零（顺带清快算按钮）
   resetCount();
+  // 5. 重新订阅传感器流：未运行则启动，运行中则强制重订阅把卡住的事件流踢活
   if (!running) {
     startListening();
+  } else {
+    resubscribeMotion();
   }
 }
 
