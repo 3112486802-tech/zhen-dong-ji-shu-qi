@@ -172,8 +172,8 @@ input[type="range"]::-webkit-slider-thumb{-webkit-appearance:none;width:16px;hei
           同一次振动不重复计数的间隔
         </div>
         <div class="pc">
-          <input type="range" min="100" max="1000" step="25" value="175" id="coolSlider" oninput="onCoolChange(this.value)">
-          <span class="pv" id="coolVal">175ms</span>
+          <input type="range" min="100" max="1000" step="10" value="190" id="coolSlider" oninput="onCoolChange(this.value)">
+          <span class="pv" id="coolVal">190ms</span>
         </div>
       </div>
       <div class="pr" style="margin-top:4px">
@@ -192,7 +192,7 @@ let maxAccel = 0;
 let lastTrigger = 0;
 let startTime = null;
 let timerInterval = null;
-let cooldown = 175;   // ms
+let cooldown = 190;   // ms
 let sensitivity = 10; // 1~10
 let threshold = 2.0;  // m/s²，由 sensitivity 映射
 let lastMotionTime = 0;       // 最近一次 devicemotion 时间戳
@@ -482,7 +482,7 @@ function requestPerm() {
 (function init() {
   // 设置初始 threshold 显示
   onSensChange(10);
-  onCoolChange(175);
+  onCoolChange(190);
 
   // 检测 iOS 需要权限
   if (typeof DeviceMotionEvent !== 'undefined' &&
