@@ -367,6 +367,22 @@ function tapCount() {
   }
 }
 
+// ── 屏幕保持唤醒 ─────────────────────────────────
+// Screen Wake Lock API。iPhone 备忘录 webview 里历史上拿不到权限（已验证），
+// watchOS WebKit 是否支持未知，能拿到就拿，拿不到静默失败不影响计数。
+// 必须在用户手势之后调用（点击数字进入 startListening 时刚好满足）。
+let wakeLock = null;
+async function acquireWakeLock() {
+  if (!('wakeLock' in navigator)) return;
+  if (wakeLock) return;
+  try {
+    wakeLock = await navigator.wakeLock.request('screen');
+    wakeLock.addEventListener('release', () => { wakeLock = null; });
+  } catch (e) {
+    // 权限被拒 / 不支持 / 非 HTTPS：静默忽略
+  }
+}
+
 // ── 启动 / 停止 ───────────────────────────────────
 // iOS Safari / Android Chrome 在省电 / 后台 / 无交互时会静默掐掉 devicemotion 事件流，
 // 手动 stop→start 能恢复的本质就是重新订阅。用心跳 watchdog 自动做这件事。
@@ -382,6 +398,7 @@ function startListening() {
   startTime = Date.now();
   lastMotionTime = Date.now();
   setStatus(true);
+  acquireWakeLock(); // 试图阻止屏幕自动熄
   timerInterval = setInterval(updateTimer, 500);
   // 每秒检查事件流是否被挂起；卡住就悄悄重订阅
   stallWatchInterval = setInterval(() => {
@@ -429,6 +446,7 @@ function requestPerm() {
   document.addEventListener('visibilitychange', () => {
     if (document.visibilityState === 'visible' && running) {
       resubscribeMotion();
+      acquireWakeLock(); // 切回前台时 wake lock 已被系统释放，重新申请
       setTimeout(() => {
         if (running && Date.now() - lastMotionTime > 400) {
           resubscribeMotion();
