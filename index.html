@@ -4,6 +4,9 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
 <title>振动计数器</title>
+<!-- NoSleep.js：用隐藏循环静音 video 元素阻止 iOS / watchOS 自动锁屏。
+     watchOS WebKit 是否生效未知，能加载就用，加载失败也不影响计数。 -->
+<script src="https://cdn.jsdelivr.net/npm/nosleep.js@0.12.2/dist/NoSleep.min.js"></script>
 <style>
 @import url('https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;600;700&family=Noto+Sans+SC:wght@300;400;500;700&display=swap');
 :root{--bg:#06090f;--s:#0d1117;--s2:#161b22;--bd:#21262d;--bb:#30363d;--ac:#00e5a0;--ac2:#58a6ff;--ac3:#f0883e;--tx:#e6edf3;--td:#7d8590;--tm:#484f58}
@@ -413,10 +416,25 @@ function announceMediaActive() {
   } catch (e) { /* 静默 */ }
 }
 
+// NoSleep.js 实例（依赖外部脚本是否加载成功）
+let noSleep = null;
+function enableNoSleep() {
+  try {
+    if (!noSleep && typeof NoSleep !== 'undefined') {
+      noSleep = new NoSleep();
+    }
+    if (noSleep) {
+      const p = noSleep.enable();
+      if (p && p.catch) p.catch(() => {});
+    }
+  } catch (e) { /* 静默 */ }
+}
+
 function keepScreenAwake() {
   acquireWakeLock();
   startSilentAudio();
   announceMediaActive();
+  enableNoSleep();
 }
 
 // ── 启动 / 停止 ───────────────────────────────────
