@@ -368,9 +368,12 @@ function tapCount() {
 }
 
 // ── 屏幕保持唤醒 ─────────────────────────────────
-// Screen Wake Lock API。iPhone 备忘录 webview 里历史上拿不到权限（已验证），
-// watchOS WebKit 是否支持未知，能拿到就拿，拿不到静默失败不影响计数。
-// 必须在用户手势之后调用（点击数字进入 startListening 时刚好满足）。
+// 多管齐下尝试阻止 watchOS / iOS 自动锁屏：
+//   1. Screen Wake Lock API（标准方案，watchOS 实测无效，但 iOS Safari 有效）
+//   2. AudioContext 静音振荡器（让页面进入"媒体活动"状态）
+//   3. MediaSession 标记"正在播放"（强化媒体活动信号）
+// 三个都得在 user gesture 之后调用，点击大数字进入 startListening 时刚好满足。
+// 全部 try/catch 包住，任一不支持都静默忽略，不影响计数主流程。
 let wakeLock = null;
 async function acquireWakeLock() {
   if (!('wakeLock' in navigator)) return;
@@ -378,9 +381,42 @@ async function acquireWakeLock() {
   try {
     wakeLock = await navigator.wakeLock.request('screen');
     wakeLock.addEventListener('release', () => { wakeLock = null; });
-  } catch (e) {
-    // 权限被拒 / 不支持 / 非 HTTPS：静默忽略
-  }
+  } catch (e) { /* 静默 */ }
+}
+
+let audioCtx = null;
+function startSilentAudio() {
+  if (audioCtx) return;
+  try {
+    const Ctx = window.AudioContext || window.webkitAudioContext;
+    if (!Ctx) return;
+    audioCtx = new Ctx();
+    // iOS WebKit 经常初始化时是 suspended，需要 resume
+    if (audioCtx.state === 'suspended') audioCtx.resume().catch(() => {});
+    const gain = audioCtx.createGain();
+    gain.gain.value = 0.0001; // 几乎零增益，实际无声
+    const osc = audioCtx.createOscillator();
+    osc.frequency.value = 1; // 1Hz 次声波，扬声器也发不出
+    osc.connect(gain).connect(audioCtx.destination);
+    osc.start();
+  } catch (e) { /* 静默 */ }
+}
+
+function announceMediaActive() {
+  if (!('mediaSession' in navigator)) return;
+  try {
+    navigator.mediaSession.metadata = new MediaMetadata({
+      title: '振动计数器',
+      artist: 'Detecting'
+    });
+    navigator.mediaSession.playbackState = 'playing';
+  } catch (e) { /* 静默 */ }
+}
+
+function keepScreenAwake() {
+  acquireWakeLock();
+  startSilentAudio();
+  announceMediaActive();
 }
 
 // ── 启动 / 停止 ───────────────────────────────────
@@ -398,7 +434,7 @@ function startListening() {
   startTime = Date.now();
   lastMotionTime = Date.now();
   setStatus(true);
-  acquireWakeLock(); // 试图阻止屏幕自动熄
+  keepScreenAwake(); // wake lock + 静音 audio + mediasession 多管齐下阻止熄屏
   timerInterval = setInterval(updateTimer, 500);
   // 每秒检查事件流是否被挂起；卡住就悄悄重订阅
   stallWatchInterval = setInterval(() => {
@@ -446,7 +482,7 @@ function requestPerm() {
   document.addEventListener('visibilitychange', () => {
     if (document.visibilityState === 'visible' && running) {
       resubscribeMotion();
-      acquireWakeLock(); // 切回前台时 wake lock 已被系统释放，重新申请
+      keepScreenAwake(); // 切回前台时各种保活状态都已被系统释放，重新申请
       setTimeout(() => {
         if (running && Date.now() - lastMotionTime > 400) {
           resubscribeMotion();
